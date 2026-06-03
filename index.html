@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ONDA — radio live</title>
+<meta name="description" content="La radio streaming di PezzaliAPP">
+<meta name="theme-color" content="#e4452b">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/favicon.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ONDA">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js"></script>
+<style>
+  :root{
+    --bg:#f3efe6; --ink:#1b1a17; --ink-soft:#6b665b; --line:#d7d0c0;
+    --card:#fbf9f3; --signal:#e4452b; --shadow:0 14px 40px rgba(27,26,23,.10);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:"Bricolage Grotesque",sans-serif;
+    background:radial-gradient(circle at 15% 8%,#fffdf7 0%,transparent 46%),
+      radial-gradient(circle at 90% 96%,#e6ddc9 0%,transparent 52%),var(--bg);
+    color:var(--ink);min-height:100%;
+    padding:max(22px,env(safe-area-inset-top)) 16px calc(108px + env(safe-area-inset-bottom));
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{width:100%;max-width:480px;margin:0 auto}
+  .top{display:flex;align-items:baseline;justify-content:space-between;
+    margin-bottom:22px;padding-bottom:14px;border-bottom:1.5px solid var(--line)}
+  .brand h1{font-size:30px;font-weight:800;letter-spacing:-1.5px;line-height:1}
+  .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--signal);
+    display:inline-block;margin-left:2px;transform:translateY(-3px)}
+  .tag{font-family:"Space Mono",monospace;font-size:10px;letter-spacing:2px;
+    text-transform:uppercase;color:var(--ink-soft)}
+
+  .player{background:var(--card);border:1px solid var(--line);border-radius:22px;
+    padding:26px 24px 22px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .freq-row{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:4px}
+  .freq{font-family:"Space Mono",monospace;font-size:13px;letter-spacing:1px;color:var(--ink-soft)}
+  .onair{display:flex;align-items:center;gap:7px;font-family:"Space Mono",monospace;
+    font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--ink-soft);transition:color .3s}
+  .onair .lamp{width:9px;height:9px;border-radius:50%;background:var(--line);transition:.3s}
+  .app.playing .onair{color:var(--signal)}
+  .app.playing .onair .lamp{background:var(--signal);animation:pulse 1.6s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(228,69,43,.5)}
+    70%{box-shadow:0 0 0 9px rgba(228,69,43,0)}100%{box-shadow:0 0 0 0 rgba(228,69,43,0)}}
+  .station-name{font-size:32px;font-weight:800;letter-spacing:-1px;line-height:1.05;margin:10px 0 4px}
+  .station-genre{font-family:"Space Mono",monospace;font-size:12px;color:var(--ink-soft);letter-spacing:.5px}
+
+  .viz{display:flex;align-items:flex-end;gap:4px;height:46px;margin:22px 0 20px}
+  .viz span{flex:1;background:var(--ink);border-radius:3px;height:8px;opacity:.25;transform-origin:bottom}
+  .app.playing .viz span{opacity:1;background:var(--signal);animation:bounce 1s ease-in-out infinite}
+  .app.playing .viz span:nth-child(2n){background:var(--ink)}
+  @keyframes bounce{0%,100%{height:8px}50%{height:46px}}
+  .viz span:nth-child(1){animation-delay:-.1s}.viz span:nth-child(2){animation-delay:-.45s}
+  .viz span:nth-child(3){animation-delay:-.25s}.viz span:nth-child(4){animation-delay:-.7s}
+  .viz span:nth-child(5){animation-delay:-.35s}.viz span:nth-child(6){animation-delay:-.55s}
+  .viz span:nth-child(7){animation-delay:-.15s}.viz span:nth-child(8){animation-delay:-.6s}
+  .viz span:nth-child(9){animation-delay:-.3s}.viz span:nth-child(10){animation-delay:-.5s}
+  .viz span:nth-child(11){animation-delay:-.2s}.viz span:nth-child(12){animation-delay:-.65s}
+  .viz span:nth-child(13){animation-delay:-.4s}.viz span:nth-child(14){animation-delay:-.75s}
+  .viz span:nth-child(15){animation-delay:-.12s}
+
+  .controls{display:flex;align-items:center;gap:16px}
+  .play{width:62px;height:62px;border-radius:50%;border:none;
+    background:var(--signal);color:#fff;cursor:pointer;flex:none;display:flex;
+    align-items:center;justify-content:center;transition:.15s;box-shadow:0 6px 18px rgba(228,69,43,.35)}
+  .play:hover{transform:scale(1.05)}.play:active{transform:scale(.95)}
+  .play svg{width:24px;height:24px;display:block}
+  .vol{flex:1;display:flex;align-items:center;gap:10px}
+  .vol svg{width:18px;height:18px;flex:none;color:var(--ink-soft)}
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;
+    border-radius:4px;background:var(--line);outline:none;cursor:pointer}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+    width:16px;height:16px;border-radius:50%;background:var(--ink);border:none;cursor:pointer}
+  input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;
+    background:var(--ink);border:none;cursor:pointer}
+  .status{font-family:"Space Mono",monospace;font-size:11px;letter-spacing:.5px;
+    color:var(--ink-soft);margin-top:14px;min-height:15px}
+  .status.err{color:var(--signal)}
+
+  .search{display:flex;gap:8px;margin:26px 0 6px}
+  .search input{flex:1;font-family:"Space Mono",monospace;font-size:13px;padding:11px 14px;
+    border:1.5px solid var(--ink);border-radius:12px;background:var(--card);color:var(--ink);outline:none}
+  .search input::placeholder{color:var(--ink-soft)}
+  .search button{font-family:"Space Mono",monospace;font-size:12px;text-transform:uppercase;
+    letter-spacing:1px;padding:0 16px;border:1.5px solid var(--ink);border-radius:12px;
+    background:var(--ink);color:var(--card);cursor:pointer}
+  .search button:active{transform:scale(.97)}
+
+  .list-title{font-family:"Space Mono",monospace;font-size:10px;letter-spacing:2.5px;
+    text-transform:uppercase;color:var(--ink-soft);margin:30px 6px 12px;
+    display:flex;align-items:center;gap:10px}
+  .list-title::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--signal);flex:none}
+  .list-title::after{content:"";flex:1;height:1px;background:var(--line)}
+  .list{display:flex;flex-direction:column;gap:8px}
+  .item{display:flex;align-items:center;gap:13px;padding:12px;border-radius:16px;
+    cursor:pointer;border:1.5px solid var(--line);transition:.14s ease;background:var(--card);
+    text-align:left;width:100%;font-family:inherit;color:inherit}
+  .item:hover{border-color:var(--ink-soft);transform:translateY(-1px)}
+  .item.active{border-color:var(--signal);box-shadow:0 0 0 3px rgba(228,69,43,.12)}
+  .item.blocked{opacity:.45}
+  .item .num{font-family:"Space Mono",monospace;font-size:9px;font-weight:700;letter-spacing:.5px;
+    color:var(--ink-soft);width:46px;height:46px;flex:none;display:flex;align-items:center;
+    justify-content:center;text-align:center;border-radius:12px;background:rgba(27,26,23,.05);
+    border:1px solid var(--line);padding:2px}
+  .item.active .num{color:#fff;background:var(--signal);border-color:var(--signal)}
+  .item .meta{flex:1;min-width:0}
+  .item .nm{font-weight:700;font-size:16px;letter-spacing:-.3px;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:7px}
+  .item .nm .http{font-family:"Space Mono",monospace;font-size:9px;letter-spacing:1px;
+    border:1px solid var(--line);border-radius:5px;padding:1px 4px;color:var(--ink-soft);flex:none}
+  .item .gn{font-family:"Space Mono",monospace;font-size:11px;color:var(--ink-soft);
+    margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .item .eq{display:flex;gap:2px;align-items:flex-end;height:16px;width:16px;flex:none;opacity:0}
+  .item.active.live .eq{opacity:1}
+  .item .eq i{width:3px;background:var(--signal);border-radius:2px;height:4px}
+  .item.active.live .eq i{animation:bounce2 .9s ease-in-out infinite}
+  .item .eq i:nth-child(2){animation-delay:-.3s}.item .eq i:nth-child(3){animation-delay:-.55s}
+  @keyframes bounce2{0%,100%{height:4px}50%{height:16px}}
+  .empty{font-family:"Space Mono",monospace;font-size:12px;color:var(--ink-soft);padding:10px 4px}
+
+  .banner{font-family:"Space Mono",monospace;font-size:11px;line-height:1.5;
+    background:#fdeee9;border:1.5px solid var(--signal);color:#8a2c1c;
+    border-radius:12px;padding:11px 14px;margin-top:16px;display:none}
+  .banner.show{display:block}
+
+  .item .nm .spot{font-family:"Space Mono",monospace;font-size:9px;letter-spacing:1px;
+    border:1px solid #e6b8ac;background:#fbeee9;border-radius:5px;padding:1px 4px;color:#a85a48;flex:none}
+  .search button.ghost{background:var(--card);color:var(--ink);padding:0 13px;display:flex;align-items:center}
+  .search button.ghost svg{width:17px;height:17px}
+  .note{font-family:"Space Mono",monospace;font-size:10.5px;line-height:1.6;
+    color:var(--ink-soft);margin:8px 4px 0}
+  .note b{color:var(--ink)}
+  footer{text-align:center;margin-top:30px;font-family:"Space Mono",monospace;
+    font-size:10px;letter-spacing:1px;color:var(--ink-soft);line-height:1.7}
+
+  .splash{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px;
+    cursor:pointer;transition:opacity .7s ease;
+    background:radial-gradient(circle at 50% 40%,#fffdf7 0%,#f3efe6 58%,#e7e0cf 100%)}
+  .splash.hide{opacity:0;pointer-events:none}
+  .splash .ring{position:absolute;width:120px;height:120px;border-radius:50%;
+    border:2px solid var(--signal);opacity:0;animation:ripple 2.6s ease-out infinite}
+  .splash .ring.r2{animation-delay:.9s}.splash .ring.r3{animation-delay:1.8s}
+  @keyframes ripple{0%{transform:scale(.4);opacity:.5}100%{transform:scale(2.4);opacity:0}}
+  .splash .logo{position:relative;font-family:"Bricolage Grotesque",sans-serif;font-weight:800;
+    font-size:clamp(54px,16vw,80px);letter-spacing:-2.5px;color:var(--ink);line-height:1}
+  .splash .logo .dot{display:inline-block;width:15px;height:15px;border-radius:50%;
+    background:var(--signal);margin-left:5px;transform:translateY(-7px)}
+  .splash .sub{font-family:"Space Mono",monospace;font-size:12px;letter-spacing:2px;
+    text-transform:uppercase;color:var(--ink-soft)}
+  .splash .enter{font-family:"Space Mono",monospace;font-size:11px;letter-spacing:2.5px;
+    text-transform:uppercase;color:var(--signal);margin-top:10px;animation:blink 1.8s infinite}
+  @keyframes blink{0%,100%{opacity:.35}50%{opacity:1}}
+
+  .nowbar{position:fixed;left:0;right:0;bottom:0;z-index:40;
+    padding:11px 16px calc(11px + env(safe-area-inset-bottom));
+    background:rgba(251,249,243,.92);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border-top:1px solid var(--line);box-shadow:0 -10px 30px rgba(27,26,23,.08);
+    transform:translateY(130%);transition:transform .32s ease}
+  .nowbar.show{transform:translateY(0)}
+  .nowbar .nb-inner{width:100%;max-width:480px;margin:0 auto;display:flex;align-items:center;gap:14px}
+  .nowbar .nb-info{flex:1;min-width:0}
+  .nowbar .nb-name{font-weight:700;font-size:15px;letter-spacing:-.3px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .nowbar .nb-status{font-family:"Space Mono",monospace;font-size:10px;letter-spacing:1.5px;
+    text-transform:uppercase;color:var(--ink-soft);margin-top:1px}
+  .nowbar.live .nb-status{color:var(--signal)}
+  .nowbar .nb-btn{width:48px;height:48px;border-radius:50%;border:none;
+    background:var(--signal);color:#fff;flex:none;display:flex;align-items:center;justify-content:center;
+    cursor:pointer;box-shadow:0 4px 14px rgba(228,69,43,.35)}
+  .nowbar .nb-btn:active{transform:scale(.94)}
+  .nowbar .nb-btn svg{width:21px;height:21px}
+</style>
+</head>
+<body>
+<div class="splash" id="splash">
+  <span class="ring"></span><span class="ring r2"></span><span class="ring r3"></span>
+  <div class="logo">ONDA<span class="dot"></span></div>
+  <div class="sub">L'app che ti collega alle radio del mondo</div>
+  <div class="enter">tocca per entrare</div>
+</div>
+
+<div class="app" id="app">
+  <div class="top">
+    <div class="brand"><h1>ONDA<span class="dot"></span></h1></div>
+    <span class="tag">radio · live</span>
+  </div>
+
+  <div class="player">
+    <div class="freq-row">
+      <span class="freq" id="freq">— —.—  MHz</span>
+      <span class="onair"><span class="lamp"></span><span id="onairtext">in pausa</span></span>
+    </div>
+    <div class="station-name" id="stName">Scegli una stazione</div>
+    <div class="station-genre" id="stGenre">premi play o scegli una stazione</div>
+    <div class="viz" id="viz"></div>
+    <div class="controls">
+      <button class="play" id="playBtn" aria-label="play">
+        <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+      </button>
+      <div class="vol">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>
+        <input type="range" id="vol" min="0" max="100" value="80">
+      </div>
+    </div>
+    <div class="status" id="status">pronta</div>
+  </div>
+
+  <div class="note"><b>SPOT</b> = la radio trasmette pubblicità (è l'emittente, non l'app). Senza spot: SomaFM e Radio Paradise.</div>
+
+  <div class="list-title">Italia</div>
+  <div class="list" id="listIt"></div>
+
+  <div class="list-title">Nel mondo</div>
+  <div class="list" id="listWorld"></div>
+
+  <footer>
+    ONDA · di PezzaliAPP<br>
+    l'app che ti collega in streaming alle radio del mondo · ricerca via radio-browser.info
+  </footer>
+</div>
+
+<div class="nowbar" id="nowbar">
+  <div class="nb-inner">
+    <div class="nb-info">
+      <div class="nb-name" id="barName">—</div>
+      <div class="nb-status" id="barStatus">in pausa</div>
+    </div>
+    <button class="nb-btn" id="barBtn" aria-label="play o pausa">
+      <svg id="barIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+    </button>
+  </div>
+</div>
+
+<script>
+const HTTPS = location.protocol === 'https:';
+
+const ITALIA=[
+  {n:"Radio Kiss Kiss",   g:"Hit · Dance",        f:"KISS",  a:1, url:"https://kisskiss.fluidstream.eu/KissKiss.mp3"},
+  {n:"Discoradio",        g:"Dance · Hit (HLS)",  f:"DISCO", a:1, url:"https://stream.discoradio.radio/audio/disco.stream_aac64/playlist.m3u8"},
+  {n:"Giornale Radio",    g:"News · Musica",      f:"GR",    url:"https://gr.fluidstream.eu/gr1.mp3"},
+];
+const WORLD=[
+  {n:"Radio Paradise",       g:"Eclectic Mix",        f:"RP",   url:"https://stream.radioparadise.com/mp3-128"},
+  {n:"RP Mellow Mix",        g:"Mellow · Chill",      f:"RP",   url:"https://stream.radioparadise.com/mellow-128"},
+  {n:"RP Rock Mix",          g:"Rock",                f:"RP",   url:"https://stream.radioparadise.com/rock-128"},
+  {n:"Groove Salad",         g:"Ambient · Downtempo", f:"SOMA", url:"https://ice1.somafm.com/groovesalad-128-mp3"},
+  {n:"Secret Agent",         g:"Lounge · Spy Jazz",   f:"SOMA", url:"https://ice1.somafm.com/secretagent-128-mp3"},
+  {n:"Lush",                 g:"Vocal · Chill",       f:"SOMA", url:"https://ice1.somafm.com/lush-128-mp3"},
+  {n:"Underground 80s",      g:"Synth · New Wave",    f:"SOMA", url:"https://ice1.somafm.com/u80s-128-mp3"},
+  {n:"Indie Pop Rocks",      g:"Indie · Alt",         f:"SOMA", url:"https://ice1.somafm.com/indiepop-128-mp3"},
+  {n:"Beat Blender",         g:"Deep House",          f:"SOMA", url:"https://ice1.somafm.com/beatblender-128-mp3"},
+  {n:"Drone Zone",           g:"Atmospheric Ambient", f:"SOMA", url:"https://ice1.somafm.com/dronezone-128-mp3"},
+  {n:"Folk Forward",         g:"Folk · Acoustic",     f:"SOMA", url:"https://ice1.somafm.com/folkfwd-128-mp3"},
+];
+
+const app=document.getElementById('app');
+const audio=new Audio();
+audio.preload="none"; audio.volume=0.8;
+let hls=null, current=null, playing=false, pendingPlay=false;
+
+const viz=document.getElementById('viz');
+for(let i=0;i<15;i++) viz.appendChild(document.createElement('span'));
+
+const els={
+  name:document.getElementById('stName'), genre:document.getElementById('stGenre'),
+  freq:document.getElementById('freq'), status:document.getElementById('status'),
+  onair:document.getElementById('onairtext'), playIcon:document.getElementById('playIcon'),
+  banner:document.getElementById('banner'),
+};
+const ICON_PLAY='<path d="M8 5v14l11-7z"/>';
+const ICON_PAUSE='<path d="M6 5h4v14H6zM14 5h4v14h-4z"/>';
+
+const nowbar=document.getElementById('nowbar');
+const barName=document.getElementById('barName');
+const barStatus=document.getElementById('barStatus');
+const barIcon=document.getElementById('barIcon');
+
+function setIcons(){
+  const icon=playing?ICON_PAUSE:ICON_PLAY;
+  els.playIcon.innerHTML=icon;
+  barIcon.innerHTML=icon;
+}
+function syncBar(){
+  if(!current){ nowbar.classList.remove('show'); return; }
+  nowbar.classList.add('show');
+  nowbar.classList.toggle('live',playing);
+  barName.textContent=current.s.n;
+  barStatus.textContent=playing?'in onda':'in pausa';
+}
+function toggle(){
+  if(!current) return;
+  if(isBlocked(current.s.url)){ setStatus('questa radio non è riproducibile online',true); return; }
+  if(playing) audio.pause(); else start();
+}
+function onItemClick(s,btn){
+  if(current && current.btn===btn){ toggle(); }
+  else { select(s,btn,true); }
+}
+
+function isBlocked(url){ return HTTPS && /^http:/i.test(url); }
+
+function makeItem(s,container){
+  const blocked=isBlocked(s.url);
+  const b=document.createElement('button');
+  b.className='item'+(blocked?' blocked':'');
+  b.innerHTML='<span class="num">'+(s.f||'')+'</span>'+
+    '<span class="meta"><div class="nm"></div><div class="gn"></div></span>'+
+    '<span class="eq"><i></i><i></i><i></i></span>';
+  const nm=b.querySelector('.nm');
+  nm.appendChild(document.createTextNode(s.n));
+  if(blocked){const t=document.createElement('span');t.className='http';t.textContent='HTTP';nm.appendChild(t);}
+  if(s.a){const t=document.createElement('span');t.className='spot';t.textContent='SPOT';nm.appendChild(t);}
+  b.querySelector('.gn').textContent=s.g||'';
+  b.addEventListener('click',()=>onItemClick(s,b));
+  container.appendChild(b);
+  return b;
+}
+ITALIA.forEach(s=>makeItem(s,document.getElementById('listIt')));
+WORLD.forEach(s=>makeItem(s,document.getElementById('listWorld')));
+
+function refreshActive(activeBtn){
+  document.querySelectorAll('.item').forEach(el=>{
+    const on=el===activeBtn;
+    el.classList.toggle('active',on);
+    el.classList.toggle('live',on&&playing);
+  });
+}
+function setStatus(t,err){els.status.textContent=t;els.status.classList.toggle('err',!!err);}
+
+function select(s,btn,autoplay){
+  current={s,btn};
+  els.name.textContent=s.n;
+  els.genre.textContent=s.g||'';
+  els.freq.textContent=(s.f||'•')+'   MHz';
+  refreshActive(btn);
+  syncBar();
+  if(isBlocked(s.url)){
+    setStatus('stream HTTP bloccato in HTTPS — apri l\'app in locale per questa radio',true);
+    return;
+  }
+  loadStream(s.url);
+  if(autoplay) start();
+}
+
+function loadStream(url){
+  if(hls){hls.destroy();hls=null;}
+  try{audio.pause();}catch(e){}
+  audio.removeAttribute('src'); audio.load();
+  const isHls=/\.m3u8(\?|$)/i.test(url);
+  if(isHls){
+    if(window.Hls && Hls.isSupported()){
+      hls=new Hls();
+      hls.loadSource(url);
+      hls.attachMedia(audio);
+      hls.on(Hls.Events.MANIFEST_PARSED,()=>{ if(pendingPlay) doPlay(); });
+      hls.on(Hls.Events.ERROR,(e,d)=>{ if(d&&d.fatal) onErr(); });
+    } else if(audio.canPlayType('application/vnd.apple.mpegurl')){
+      audio.src=url;
+    } else {
+      setStatus('stream HLS non supportato da questo browser',true); return;
+    }
+  } else {
+    audio.src=url;
+  }
+}
+
+function doPlay(){
+  pendingPlay=false;
+  const p=audio.play();
+  if(p&&p.catch) p.catch(()=>setStatus('avvio bloccato — tocca di nuovo play',true));
+}
+function start(){
+  setStatus('sintonizzazione…');
+  if(hls){ pendingPlay=true; setTimeout(()=>{ if(pendingPlay) doPlay(); },1500); }
+  else doPlay();
+}
+function onErr(){
+  playing=false; app.classList.remove('playing');
+  els.onair.textContent='errore';
+  setStatus('stream non raggiungibile — prova un\'altra stazione',true);
+  setIcons(); syncBar(); refreshActive(current&&current.btn);
+}
+
+document.getElementById('playBtn').addEventListener('click',()=>{
+  if(!current){
+    const first=ITALIA.find(s=>!isBlocked(s.url)) || ITALIA[0];
+    select(first, [...document.querySelectorAll('#listIt .item')][ITALIA.indexOf(first)], true);
+    return;
+  }
+  if(isBlocked(current.s.url)){
+    setStatus('questa radio è HTTP: non riproducibile online',true); return;
+  }
+  if(playing) audio.pause(); else start();
+});
+document.getElementById('vol').addEventListener('input',e=>{audio.volume=e.target.value/100;});
+
+audio.addEventListener('playing',()=>{
+  playing=true; app.classList.add('playing');
+  els.onair.textContent='on air';
+  setStatus('in riproduzione · '+(current?current.s.n:''));
+  setIcons(); syncBar(); refreshActive(current&&current.btn);
+});
+audio.addEventListener('pause',()=>{
+  playing=false; app.classList.remove('playing');
+  els.onair.textContent='in pausa';
+  setStatus('in pausa'); setIcons(); syncBar(); refreshActive(current&&current.btn);
+});
+audio.addEventListener('waiting',()=>setStatus('buffering…'));
+audio.addEventListener('error',onErr);
+
+document.getElementById('barBtn').addEventListener('click',toggle);
+
+/* ---- Media Session (controlli da lockscreen / cuffie) ---- */
+function updateMediaSession(s){
+  if(!('mediaSession' in navigator)) return;
+  navigator.mediaSession.metadata=new MediaMetadata({
+    title:s.n, artist:s.g||'ONDA', album:'ONDA Radio',
+    artwork:[{src:'icons/icon-512.png',sizes:'512x512',type:'image/png'}]
+  });
+}
+const _select=select;
+select=function(s,btn,ap){ _select(s,btn,ap); updateMediaSession(s); };
+if('mediaSession' in navigator){
+  navigator.mediaSession.setActionHandler('play',()=>{ if(current&&!isBlocked(current.s.url)) start(); });
+  navigator.mediaSession.setActionHandler('pause',()=>audio.pause());
+}
+
+/* ---- Intro vocale (file audio opzionale) + splash ---- */
+(function(){
+  const splash=document.getElementById('splash');
+  let entered=false;
+
+  // Riproduce una voce registrata "da radio" SOLO se esiste il file intro.mp3
+  // nella cartella del sito. Se non c'è, nessuna voce (niente sintetizzatore).
+  function playIntro(){
+    const a=new Audio('intro.mp3');
+    a.volume=1;
+    a.play().catch(()=>{ /* file assente o non riproducibile: nessuna voce */ });
+  }
+
+  function enter(){
+    if(entered) return;
+    entered=true;
+    playIntro();
+    splash.classList.add('hide');
+  }
+
+  // Lo splash è anche il "primo tocco" che sblocca l'audio su iPhone.
+  splash.addEventListener('click',enter);
+  window.addEventListener('keydown',enter,{once:true});
+  window.addEventListener('touchstart',enter,{once:true});
+})();
+
+/* ---- Service Worker ---- */
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
+  });
+}
+</script>
+</body>
+</html>
